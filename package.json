@@ -2,7 +2,7 @@
   "name": "archipel-app",
   "productName": "Archipel",
   "version": "2.0.1",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "description": "Archipel Desktop App",
   "author": "Archipel:Somoco Team",
   "scripts": {
@@ -21,5 +21,10 @@
     "opn": "^5.3.0",
     "standard": "^11.0.1",
     "tape": "^4.9.1"
+  },
+  "dependencies": {
+    "application-config-path": "^0.1.0",
+    "depj": "^1.0.3",
+    "param": "^1.1.0"
   }
 }

@@ -1,0 +1,8 @@
+{
+  "name": "@archipel/core",
+  "main": "backend",
+  "browser": "frontend",
+  "dependencies": {
+    "hyperdb": "^3.5.0"
+  }
+}

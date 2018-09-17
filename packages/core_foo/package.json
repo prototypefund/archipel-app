@@ -1,0 +1,8 @@
+{
+  "name": "@archipel/core",
+  "main": "backend",
+  "browser": "frontend",
+  "dependencies": {
+    "thunky": "^1.0.2"
+  }
+}

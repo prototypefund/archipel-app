@@ -1,33 +1,33 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { openWorkspace } from './../../api/workspace'
+import { Button } from 'archipel-ui'
+import fileReader from 'filereader-stream'
 
 function dirlist (drive, cb) {
-  var missing = 1
-  var list = []
+  const list = []
+  let missing = 0
   rec('', list)
 
   function rec (dir, list) {
     drive.readdir(dir, (err, names) => {
       names = names.filter((n) => n)
-      missing = missing + names.length - 1
-      if (!names.length) maybeDone()
+      missing = missing + names.length
+      if (err || !names.length) maybeDone()
+      else names.forEach((name) => onPath(dir + '/' + name, name))
+    })
+  }
+
+  function onPath (path, name) {
+    drive.stat(path, (err, stat) => {
       if (err) return
-      names.forEach((name) => {
-        var path = dir + '/' + name
-        drive.stat(path, (err, stat) => {
-          var shared = {name, stat, path}
-          if (err) return
-          if (stat.isDirectory()) {
-            var pos = list.push({...shared, dir: true, children: []})
-            rec(path, list[pos - 1].children)
-          } else {
-            list.push({...shared, dir: false})
-            missing--
-            maybeDone()
-          }
-        })
-      })
+
+      const val = {name, stat, path, dir: stat.isDirectory(), children: []}
+      const pos = list.push(val)
+
+      missing--
+      if (val.dir) rec(path, list[pos - 1].children)
+      else maybeDone()
     })
   }
 
@@ -49,7 +49,8 @@ class FileView extends React.Component {
   constructor () {
     super()
     this.state = {
-      content: ''
+      content: '',
+      type: null
     }
   }
   componentDidUpdate (prevProps, prevState, snapshot) {
@@ -60,15 +61,25 @@ class FileView extends React.Component {
         if (err) return console.log(err)
         drive.readFile(this.props.path, (err, data) => {
           if (err) return console.log(err)
-          this.setState({ content: data.toString('utf-8') })
+          console.log('file data', data)
+          if (this.props.path.substr(-3) === 'jpg') {
+            var src = 'data:image/jpeg;base64,' + uint8tob64(data)
+            this.setState({ type: 'jpg', content: src })
+          } else {
+            this.setState({ type: 'text', content: data.toString('utf-8') })
+          }
         })
       })
     }
   }
 
   render () {
-    if (this.props.path) return <div><em>{this.props.path}</em><hr/><code>{this.state.content}</code></div>
-    else return <div><em>Select file</em></div>
+    if (!this.state.content) return <div><em>Select file</em></div>
+    return (<div>
+      <em>{this.props.path}</em><hr />
+      { this.state.type === 'text' && <code>{this.state.content}</code> }
+      { this.state.type === 'jpg' && <img src={this.state.content} /> }
+    </div>)
   }
 }
 
@@ -82,6 +93,7 @@ class ShowArchive extends React.Component {
       dirlist: [],
       path: null
     }
+    this.onUpload = this.onUpload.bind(this)
   }
 
   componentDidMount () {
@@ -103,6 +115,27 @@ class ShowArchive extends React.Component {
     })
   }
 
+  onUpload (e) {
+    if (this.refs.upload.files[0]) {
+      var file = this.refs.upload.files[0]
+      console.log(file)
+      var reader = fileReader(file)
+      reader.on('end', () => 'rs end')
+      const Workspace = openWorkspace(this.props.workspace)
+      Workspace.getDrive(this.props.archive, (err, drive) => {
+        if (err) console.log(err)
+        drive.createWriteStream(file.name, (err, ws) => {
+          if (err) return console.log(err)
+          reader.pipe(ws)
+          ws.on('error', (err) => console.log('ws err', err))
+          ws.on('finish', () => console.log('ws finish'))
+        })
+      })
+    } else {
+      console.log('no file')
+    }
+  }
+
   render () {
     console.log('render', this.state)
     const { archive, datjson, dirlist, path } = this.state
@@ -121,7 +154,12 @@ class ShowArchive extends React.Component {
           </div>
         </div>
 
-        <h5>Helpers (in DevConsole)</h5>
+        <div className='p-4 border-2 border-blue'>
+          <input type='file' ref='upload' />
+          <Button onClick={this.onUpload}>Upload</Button>
+        </div>
+
+        <h5 className='mt-24'>Helpers (in DevConsole)</h5>
         <blockquote>
           <strong>readFile:</strong>
           <pre>
@@ -151,3 +189,27 @@ const mapStateToProps = (state, props) => ({
 })
 
 export default connect(mapStateToProps, mapDispatchToProps)(ShowArchive)
+
+function uint8tob64 (buf) {
+  var binstr = Array.prototype.map.call(buf, function (ch) {
+    return String.fromCharCode(ch)
+  }).join('')
+  var b64 = window.btoa(binstr)
+  return b64
+  // var b64str = ''
+  // var len = bytes.byteLength
+  // for (var i = 0; i < len; i++) {
+  //   b64str += String.fromCharCode(bytes[i])
+  // }
+  // return window.btoa(b64str)
+}
+
+function arrayBufferToBase64 (buf) {
+  var binary = ''
+  var bytes = new Uint8Array(buf)
+  var len = bytes.byteLength
+  for (var i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return window.btoa(binary)
+}

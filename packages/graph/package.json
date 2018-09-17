@@ -1,0 +1,8 @@
+{
+  "name": "@archipel/graph",
+  "main": "backend",
+  "browser": "frontend",
+  "dependencies": {
+    "hyper-graph-db": "^0.3.6"
+  }
+}

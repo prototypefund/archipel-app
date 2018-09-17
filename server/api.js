@@ -1,6 +1,9 @@
 var path = require('path')
 var debug = require('./api-debug.js')
 var WorkspaceManager = require('./workspace').WorkspaceManager
+var rpcify = require('hyperpc').rpcify
+
+var hyperdrive = require('hyperdrive')
 
 var rootPath = process.env.ARCHIPEL_ROOT_PATH || path.join(__dirname, '..', 'db')
 var Workspaces = WorkspaceManager(rootPath)
@@ -9,6 +12,17 @@ var api = {
   debug: {
     ...debug
   },
+
+  hyperdrive: rpcify(hyperdrive, {
+    factory: function (wsk, key) {
+      var ws = Workspaces.openWorkspace(wsk)
+      if (!ws) return false
+      var drive = ws.getDrive(key)
+      return drive
+    }
+  }),
+
+
 
   getWorkspaces: (cb) => Workspaces.getWorkspaces(cb),
   openWorkspace: (key, cb) => Workspaces.openWorkspaceToRemote(key, cb),
@@ -43,6 +57,9 @@ var api = {
       },
       writeFile: (wsk, key, path, buf, opts, cb) => {
         getDrive(wsk, key, (err, drive) => err ? cb(err) : drive.writeFile(path, buf, opts, cb))
+      },
+      createWriteStream: (wsk, key, path, cb) => {
+        getDrive(wsk, key, (err, drive) => err ? cb(err) : cb(null, drive.createWriteStream(path)))
       }
     },
 

@@ -47,7 +47,8 @@ Workspace.prototype.getDrive = function (key, cb) {
       }),
       mkdir: (path, opts, cb) => api.workspace.drive.mkdir(this.wsk, key, path, opts, cb),
       readFile: (path, cb) => api.workspace.drive.readFile(this.wsk, key, path, cb),
-      writeFile: (path, buf, opts, cb) => api.workspace.drive.writeFile(this.wsk, key, path, buf, opts, cb)
+      writeFile: (path, buf, opts, cb) => api.workspace.drive.writeFile(this.wsk, key, path, buf, opts, cb),
+      createWriteStream: (path, cb) => api.workspace.drive.createWriteStream(this.wsk, key, path, cb)
     }
     cb(null, drive)
   })

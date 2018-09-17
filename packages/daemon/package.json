@@ -1,0 +1,5 @@
+{
+  "name": "@archipel/daemon",
+  "main": "backend",
+  "browser": "frontend"
+}
