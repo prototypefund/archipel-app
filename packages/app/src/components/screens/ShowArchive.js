@@ -1,76 +1,8 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { openWorkspace } from './../../api/workspace'
-
-function dirlist (drive, cb) {
-  var missing = 1
-  var list = []
-  rec('', list)
-
-  function rec (dir, list) {
-    drive.readdir(dir, (err, names) => {
-      names = names.filter((n) => n)
-      missing = missing + names.length - 1
-      if (!names.length) maybeDone()
-      if (err) return
-      names.forEach((name) => {
-        var path = dir + '/' + name
-        drive.stat(path, (err, stat) => {
-          var shared = {name, stat, path}
-          if (err) return
-          if (stat.isDirectory()) {
-            var pos = list.push({...shared, dir: true, children: []})
-            rec(path, list[pos - 1].children)
-          } else {
-            list.push({...shared, dir: false})
-            missing--
-            maybeDone()
-          }
-        })
-      })
-    })
-  }
-
-  function maybeDone () {
-    if (!missing) cb(null, list)
-  }
-}
-
-const Dirlist = ({dirlist, setPath}) => (
-  <ul className='pl-2'>
-    {dirlist.map((dir, i) => <li key={i} className={dir.dir ? 'text-blue' : 'text-red'}>
-      <span className='cursor-pointer' onClick={(e) => setPath(dir.path)}>{dir.name}</span>
-      {dir.children && <Dirlist dirlist={dir.children} setPath={setPath} />}
-    </li>)}
-  </ul>
-)
-
-class FileView extends React.Component {
-  constructor () {
-    super()
-    this.state = {
-      content: ''
-    }
-  }
-  componentDidUpdate (prevProps, prevState, snapshot) {
-    if (this.props.path !== prevProps.path) {
-      const archive = this.props.archive
-      const Workspace = openWorkspace(this.props.workspace)
-      Workspace.getDrive(archive.drive.key, (err, drive) => {
-        if (err) return console.log(err)
-        drive.readFile(this.props.path, (err, data) => {
-          if (err) return console.log(err)
-          this.setState({ content: data.toString('utf-8') })
-        })
-      })
-    }
-  }
-
-  render () {
-    if (this.props.path) return <div><em>{this.props.path}</em><hr/><code>{this.state.content}</code></div>
-    else return <div><em>Select file</em></div>
-  }
-}
+import { Button, Flexbox } from '@archipel/ui'
+import '@archipel/ui/tailwind.pcss'
 
 class ShowArchive extends React.Component {
   constructor () {
@@ -78,9 +10,8 @@ class ShowArchive extends React.Component {
     this.state = {
       archive: null,
       datjson: null,
-      dirPath: '/',
-      dirlist: [],
-      path: null
+      fileTree: [],
+      view: 'listView'
     }
   }
 
@@ -96,48 +27,198 @@ class ShowArchive extends React.Component {
         this.setState({ datjson: data.toString('utf-8') })
       })
 
-      dirlist(drive, (err, data) => {
-        if (err) return
-        if (data) this.setState({dirlist: data})
+      getFileTree(drive, (err, data) => {
+        if (err) return console.log('getFileTree_cb', err)
+        if (data) {
+          this.setState({
+            fileTree: data
+          })
+        }
       })
     })
   }
 
   render () {
-    console.log('render', this.state)
-    const { archive, datjson, dirlist, path } = this.state
-    if (!archive) return <span>No archive</span>
-
     return (
-      <div className='p-4'>
-        <em>Show archive</em>
-        <h2>{archive.title}</h2>
-        <div className='flex'>
-          <div className='p-2 border-2 w-64'>
-            { dirlist && <Dirlist dirlist={dirlist} setPath={(path) => this.setState({path})} /> }
-          </div>
-          <div className='p-2 border-2'>
-            <FileView archive={archive} path={path} workspace={this.props.workspace} />
-          </div>
+      // View selector
+      <div>
+        <div className='bg-grey'>
+          <Button onClick={() => { this.setState({view: 'listView'}) }}>List View</Button>
+          <Button onClick={() => { this.setState({view: 'gridView'}) }}>Grid View</Button>
+          <Button onClick={() => { this.setState({view: 'graphView'}) }}>Graph View</Button>
         </div>
-
-        <h5>Helpers (in DevConsole)</h5>
-        <blockquote>
-          <strong>readFile:</strong>
-          <pre>
-          rpc((api) => api.workspace.drive.readFile('{this.props.workspace}', '{this.props.archive}', 'directory1/textfile.txt', (err, data) => console.log('readFile', err, data) ) )
-          </pre>
-          <strong>writeFile:</strong>
-          <pre>
-          rpc((api) => api.workspace.drive.writeFile('{this.props.workspace}', '{this.props.archive}', 'directory1/textfile.txt', 'Hello world!', {'{}'}, (err, data) => console.log('writeFile', err, data) ) )
-          </pre>
-          <strong>mkdir</strong>
-          <pre>
-          rpc((api) => api.workspace.drive.mkdir('{this.props.workspace}', '{this.props.archive}', 'directory1', {'{}'}, (err, data) => console.log('mkdir', err, data)))
-          </pre>
-        </blockquote>
+        <View view={this.state.view} fileTree={this.state.fileTree} />
+        <small>
+          <blockquote>
+            <strong>readFile:</strong>
+            <pre>
+            rpc((api) => api.workspace.drive.readFile('{this.props.workspace}', '{this.props.archive}', 'directory1/textfile.txt', (err, data) => console.log('readFile', err, data) ) )
+            </pre>
+            <strong>writeFile:</strong>
+            <pre>
+            rpc((api) => api.workspace.drive.writeFile('{this.props.workspace}', '{this.props.archive}', 'directory1/textfile.txt', 'Hello world!', {'{}'}, (err, data) => console.log('writeFile', err, data) ) )
+            </pre>
+            <strong>mkdir</strong>
+            <pre>
+            rpc((api) => api.workspace.drive.mkdir('{this.props.workspace}', '{this.props.archive}', 'directory1', {'{}'}, (err, data) => console.log('mkdir', err, data)))
+            </pre>
+          </blockquote>
+        </small>
       </div>
     )
+  }
+}
+
+function View (props) {
+  switch (props.view) {
+    case 'listView':
+      return <ListView fileTree={props.fileTree} />
+    case 'gridView':
+      return <GridView fileTree={props.fileTree} />
+    case 'graphView':
+      return <GraphView />
+    default:
+      return <ListView />
+  }
+}
+
+// ListView using flexbox
+class ListView extends React.Component {
+  constructor (props) {
+    super(props)
+    this.state = {
+      fileTree: [],
+      jsxElements: []
+    }
+    // this.flexview = flexview.bind(this)
+  }
+
+  componentDidUpdate () {
+    if (this.state.fileTree.length === 0) {
+      this.state.fileTree = this.props.fileTree
+    }
+  }
+
+  flexview (fileTree, indexArr) {
+    for (var i = 0; i < fileTree.length; i++) {
+      if (fileTree[i].dir && fileTree[i].open) {
+        this.state.jsxElements.push(this.flexItem(fileTree[i], [...indexArr, i]))
+        this.flexview(fileTree[i].children, [...indexArr, i])
+      } else {
+        this.state.jsxElements.push(this.flexItem(fileTree[i], [...indexArr, i]))
+      }
+    }
+    // need to return something to invoke rerendering at call in this.render()
+    if (indexArr.length === 0) return this.state.jsxElements
+  }
+
+  flexItem (fileTreeElem, indexArr) {
+    return (
+      <Flexbox
+        className='flex-row items-stretch'
+        key={indexArr.toString()}
+        id={indexArr.toString()}
+        onClick={() => {
+          this.setState({
+            fileTree: this.handleClick(indexArr)
+          })
+        }}
+      >
+        <div className='bg-grey-light px-4 py-2 m-2'>{arrows(fileTreeElem.depth)}</div>
+        <div className='bg-grey-light px-4 py-2 m-2'>{fileTreeElem.name}</div>
+        <div className='bg-grey-light px-4 py-2 m-2'>{fileTreeElem.path}</div>
+      </Flexbox>
+    )
+  }
+
+  handleClick (indexArr) {
+    let fileTree = this.state.fileTree
+
+    function getToItemRecly (fileTree, indexArr) {
+      if (indexArr.length > 1) {
+        fileTree[indexArr[0]].children = getToItemRecly(
+          fileTree[indexArr[0]].children,
+          indexArr.slice(1, indexArr.length)
+        )
+        return fileTree
+      }
+      if (indexArr.length === 1) {
+        fileTree[indexArr[0]].open = !fileTree[indexArr[0]].open
+        return fileTree
+      }
+    }
+    fileTree = getToItemRecly(fileTree, indexArr)
+
+    return fileTree
+  }
+
+  render () {
+    this.state.jsxElements = []
+    return (
+      <div className='bg-teal'>
+        <div className='bg-teal'>ListView</div>
+        <Flexbox className='flex-col'>{this.flexview(this.state.fileTree, [])}</Flexbox>
+      </div>
+    )
+  }
+}
+
+class GridView extends React.Component {
+  render () {
+    return (
+      <div className='bg-teal'>GridView</div>
+    )
+  }
+}
+
+class GraphView extends React.Component {
+  render () {
+    return (
+      <div className='bg-teal'>GraphView</div>
+    )
+  }
+}
+
+function arrows (number = 0) {
+  let str = ''
+  for (let i = 0; i < number; i++) {
+    str += '-> '
+  }
+  return str
+}
+
+function getFileTree (drive, cb) {
+  let fileTree = []
+  let depth = 0 // fielTreeDepth
+  let missingDirElem = 0 // intialized here to make available to maybeDone()
+  constrFileTreeArrayRecly('', fileTree, depth)
+
+  function constrFileTreeArrayRecly (dir, fileTree, depth) {
+    drive.readdir(dir, (err, names) => {
+      names = names.filter((n) => n)
+      missingDirElem = names.length // missing elements in directory
+      if (!names.length) maybeDone()
+      if (err) return
+      names.forEach((name) => {
+        var path = dir + '/' + name
+        drive.stat(path, (err, stat) => {
+          var shared = {name, stat, path, depth}
+          if (err) return
+          if (stat.isDirectory()) {
+            var pos = fileTree.push({...shared, dir: true, open: false, children: []})
+            constrFileTreeArrayRecly(path, fileTree[pos - 1].children, depth + 1)
+          } else {
+            fileTree.push({...shared, dir: false})
+            missingDirElem--
+            maybeDone()
+          }
+        })
+      })
+    })
+  }
+
+  function maybeDone () {
+    if (!missingDirElem) cb(null, fileTree)
   }
 }
 
