@@ -113,9 +113,9 @@ class ListView extends React.Component {
   }
 
   flexItem (fileTreeElem, indexArr) {
+    console.log(fileTreeElem)
     return (
-      <Flexbox
-        className='flex-row items-stretch'
+      <div className='flex'
         key={indexArr.toString()}
         id={indexArr.toString()}
         onClick={() => {
@@ -124,10 +124,17 @@ class ListView extends React.Component {
           })
         }}
       >
-        <div className='bg-grey-light px-4 py-2 m-2'>{arrows(fileTreeElem.depth)}</div>
-        <div className='bg-grey-light px-4 py-2 m-2'>{fileTreeElem.name}</div>
-        <div className='bg-grey-light px-4 py-2 m-2'>{fileTreeElem.path}</div>
-      </Flexbox>
+        <div className='w-1/3 flex flex-row mx-2 pb-1'>
+          <div className={`bg-orange-light bg-contain text-right w-${2 + 4 * fileTreeElem.depth} ml-2`}>{arrows(fileTreeElem.depth)}</div>
+          <div className='bg-orange-light bg-contain w-full break-words'>{fileTreeElem.name}</div>
+        </div>
+        <div className='w-1/2 flex flex-row mx-2 pb-1'>
+          <div className='bg-orange-light bg-contain w-full break-words'>{fileTreeElem.path}</div>
+        </div>
+        <div className='w-1/6 flex flex-row mx-2 pb-1'>
+          <div className='bg-orange-light bg-contain w-full break-words'>{fileTreeElem.stat.size}</div>
+        </div>
+      </div>
     )
   }
 
@@ -155,9 +162,9 @@ class ListView extends React.Component {
   render () {
     this.state.jsxElements = []
     return (
-      <div className='bg-teal'>
-        <div className='bg-teal'>ListView</div>
-        <Flexbox className='flex-col'>{this.flexview(this.state.fileTree, [])}</Flexbox>
+      <div>
+        <div className='bg-orange-lighter'>ListView</div>
+        <div className='flex flex-col bg-orange-lighter w-1/2'>{this.flexview(this.state.fileTree, [])}</div>
       </div>
     )
   }
@@ -181,9 +188,13 @@ class GraphView extends React.Component {
 
 function arrows (number = 0) {
   let str = ''
+
+  if (number === 0) return str
+
   for (let i = 0; i < number; i++) {
-    str += '-> '
+    str += ' '
   }
+  str += '\u{02937}'
   return str
 }
 
