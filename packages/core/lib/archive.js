@@ -123,6 +123,7 @@ Archive.prototype._ensureFs = async function () {
 }
 
 Archive.prototype._ensureInfo = async function (doSave) {
+  console.log('ensureInfo', doSave)
   try {
     const info = await this.fs.readFile('dat.json')
     this.info = JSON.parse(info.toString())
@@ -181,10 +182,11 @@ Archive.prototype._defaultInfo = function () {
   const info = {
     url: 'dat://' + datenc.toStr(this.fs.key),
     key: datenc.toStr(this.fs.key),
+    foo: 'bar',
     archipel: {
       type: 'archipel-archive-v1',
       primary: true,
-      mounts: {}
+      mounts: {test: false},
     }
   }
   return Object.assign({}, info, this._opts.info)

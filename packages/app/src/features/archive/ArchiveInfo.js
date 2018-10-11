@@ -8,6 +8,7 @@ const ArchiveInfo = ({ archive }) => {
   return <ReduxQuery select={select.archiveByKey} archive={archive} async={false} >
     {(archive) => {
       if (!archive) return null
+      console.log(archive)
       return (
         <div>
           <Heading>{archive.title}</Heading>
